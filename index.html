@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<!-- Déclare un document HTML5 standard -->
+<html lang="fr">
+
+<head>
+    <!-- Encodage UTF-8 pour afficher correctement les accents français -->
+    <meta charset="UTF-8">
+    <!-- Viewport (fenêtre d'affichage) : adapte la largeur au mobile et bloque le zoom involontaire -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Titre affiché dans l'onglet du navigateur -->
+    <title>L'Urne Pleine — Défi Tactique</title>
+    <style>
+        /* Applique border-box (boîte incluant bordures et marges internes) à tous les éléments */
+        * {
+            box-sizing: border-box;
+        }
+
+        /* Réinitialise la page, fixe le fond sombre et empêche le défilement (overflow: hidden) */
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #141824;
+            color: white;
+            font-family: sans-serif;
+            /* Désactive les gestes tactiles natifs (scroll/zoom) pour réserver l'écran au jeu */
+            touch-action: none;
+            /* Empêche la sélection de texte lors des clics rapides */
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        /* Organise la page en colonne flexible (flex) sur 100% de la hauteur dynamique (100dvh) */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            height: 100dvh;
+            padding: 6px 10px;
+        }
+
+        /* Classe de repli (fallback) pour simuler le plein écran sur les mobiles bloquant l'API native */
+        body.fullscreen-jeu {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100dvh;
+            padding: 6px 10px;
+            background: #0d1018;
+            z-index: 9999;
+        }
+
+        /* Barre supérieure (HUD = Heads-Up Display / affichage tête haute) */
+        .barre-hud {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 920px;
+            font-size: 13px;
+            gap: 6px 8px;
+            flex-shrink: 0;
+        }
+
+        /* Groupe des compteurs à gauche du HUD */
+        .stats-hud {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+        }
+
+        /* Badge lisible pour le nom du camp choisi (fond coloré + texte blanc) */
+        .badge-camp {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 5px;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Groupe des boutons d'action à droite du HUD */
+        .actions-hud {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Conteneur central flexible qui accueille la toile de dessin (canvas) */
+        .zone-jeu {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            max-width: 920px;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        /* Toile graphique (canvas) : conserve strictement le ratio 4/3 sans déborder */
+        canvas {
+            border: 3px solid #fff;
+            border-radius: 8px;
+            background: #101522;
+            width: auto;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 4 / 3;
+            display: block;
+            cursor: pointer;
+        }
+
+        /* Volet latéral (aside) d'aide qui coulisse depuis le bord droit */
+        .volet-regles {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(390px, 92vw);
+            height: 100dvh;
+            background: #1b2234;
+            border-left: 3px solid #ffd166;
+            padding: 18px;
+            z-index: 10000;
+            /* Masqué hors de l'écran par défaut (translateX 100%) */
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+            overflow-y: auto;
+            touch-action: pan-y;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        /* Classe ajoutée en JS pour faire apparaître le volet */
+        .volet-regles.ouvert {
+            transform: translateX(0);
+        }
+
+        /* En-tête du volet d'aide */
+        .volet-entete {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Titre principal du volet */
+        .volet-entete h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #ffd166;
+        }
+
+        /* Encadré dédié à la note satirique dans le volet des règles */
+        .note-satirique {
+            background: rgba(255, 209, 102, 0.12);
+            border-left: 3px solid #ffd166;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+
+        /* Style du texte de la note satirique */
+        .note-satirique p {
+            margin: 0;
+            font-style: italic;
+            color: #fde68a;
+        }
+
+        /* Sous-titres du volet */
+        .volet-regles h3 {
+            margin: 14px 0 6px;
+            font-size: 14px;
+            color: #4cc9f0;
+            text-transform: uppercase;
+        }
+
+        /* Paragraphes et puces du volet */
+        .volet-regles p,
+        .volet-regles li {
+            font-size: 13.5px;
+            line-height: 1.45;
+            color: #e2e8f0;
+        }
+
+        /* Espacement des listes dans le volet */
+        .volet-regles ul {
+            margin: 4px 0 10px;
+            padding-left: 18px;
+        }
+
+        /* Barre inférieure dédiée aux boutons tactiles sur smartphone */
+        .controles-mobiles {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 920px;
+            gap: 8px;
+            flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom, 4px);
+        }
+
+        /* Sous-groupe de boutons tactiles */
+        .groupe-boutons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Style de base de tous les boutons */
+        button {
+            background: #283044;
+            color: white;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            padding: 10px 13px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            white-space: nowrap;
+        }
+
+        /* Retour visuel rouge lors de l'appui */
+        button:active {
+            background: #e63946;
+        }
+
+        /* Bouton Sifflet mis en valeur en vert turquoise */
+        #btn-sifflet {
+            background: #2a9d8f;
+            padding: 10px 16px;
+        }
+
+        /* Boutons compacts de la barre supérieure */
+        .btn-hud {
+            padding: 5px 7px;
+            font-size: 11.5px;
+            border-radius: 7px;
+        }
+
+        /* Bouton Démarrer mis en évidence en vert */
+        .btn-hud.demarrer {
+            background: #16a34a;
+            border-color: #86efac;
+        }
+
+        /* État actif rouge (muet, stop ou volet ouvert) */
+        .btn-hud.muet,
+        .btn-hud.actif {
+            background: #b52b37;
+            border-color: #ffd166;
+        }
+
+        /* État actif bleu pour le mode ralenti */
+        .btn-hud.ralenti {
+            background: #2563eb;
+            border-color: #93c5fd;
+        }
+
+        /* Cache les contrôles tactiles sur PC (grand écran + souris précise) */
+        @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+            .controles-mobiles {
+                display: none;
+            }
+        }
+
+        /* Adapte la taille du canvas sur smartphone tenu verticalement (portrait) */
+        @media (orientation: portrait) {
+            .zone-jeu {
+                flex: 0 1 auto;
+                width: 100%;
+            }
+
+            canvas {
+                width: 100%;
+                height: auto;
+                max-height: 48dvh;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Barre supérieure d'informations et de commandes -->
+    <div class="barre-hud">
+        <div class="stats-hud">
+            <div>Camp : <strong id="mon-camp-hud" class="badge-camp">LFI</strong></div>
+            <div>Urne : <span id="mon-score-hud">0</span>/10</div>
+            <div>Bloqués : <span id="nb-bloques-hud">0</span></div>
+        </div>
+        <div class="actions-hud">
+            <button type="button" id="btn-demarrer" class="btn-hud demarrer">DÉMARRER</button>
+            <button type="button" id="btn-volet" class="btn-hud">Règles</button>
+            <button type="button" id="btn-vitesse" class="btn-hud">Ralenti : OFF</button>
+            <button type="button" id="btn-stop" class="btn-hud">STOP</button>
+            <button type="button" id="btn-son" class="btn-hud">Son : ON</button>
+            <button type="button" id="btn-reset" class="btn-hud">Reset</button>
+            <button type="button" id="btn-fullscreen" class="btn-hud">Plein écran</button>
+        </div>
+    </div>
+
+    <!-- Zone centrale de dessin du jeu -->
+    <div class="zone-jeu">
+        <canvas id="jeu" width="800" height="600"></canvas>
+    </div>
+
+    <!-- Volet coulissant des règles (met le jeu en pause automatiquement à l'ouverture) -->
+    <aside id="volet-regles" class="volet-regles" aria-label="Règles et aide du jeu">
+        <div class="volet-entete">
+            <h2>Comment jouer</h2>
+            <button type="button" id="btn-fermer-volet" class="btn-hud">Fermer ✕</button>
+        </div>
+
+        <!-- Note d'intention satirique expliquant le sens du jeu -->
+        <div class="note-satirique">
+            <p>
+                <strong>Note satirique :</strong> Ce jeu caricature les guéguerres partisanes, la multiplication des
+                candidats et l'agressivité de chacun pour imposer son camp. À force de bousculades pour gagner à tout
+                prix, on finit surtout par ne plus savoir quoi voter…
+            </p>
+        </div>
+
+        <h3>1. Préparation (avant le départ)</h3>
+        <p>
+            Rien ne bouge tant que tu n'as pas cliqué sur <strong>DÉMARRER</strong>.
+            Clique sur l'urne de ton choix (ou touches <strong>1 à 5</strong>) pour choisir ton camp tranquillement.
+        </p>
+
+        <h3>2. Le but et le challenge</h3>
+        <ul>
+            <li><strong>Victoire :</strong> remplis <strong>ton urne à 10/10</strong> avant qu'un camp adverse
+                n'atteigne 10/10.</li>
+            <li><strong>Ton Bouclier bleu (◀ / ▶ ou clic sur une urne) :</strong> place-le sous une <strong>urne
+                    adverse</strong> pour <strong>intercepter et détruire</strong> son bulletin ! Place-le sous
+                <strong>ton urne</strong> pour sécuriser tes votes.
+            </li>
+            <li><strong>Bousculades :</strong> certains votants perturbateurs bousculent leurs rivaux devant les urnes
+                et font perdre leur bulletin (<strong>BULLETIN PERDU !</strong>).</li>
+            <li><strong>Le Sifflet (Espace / SIFFLET) :</strong> repousse vers le bas les rivaux qui approchent
+                (recharge de 3 secondes).</li>
+            <li><strong>Pression croissante :</strong> des renforts arrivent régulièrement jusqu'à 9 votants simultanés.
+            </li>
+        </ul>
+
+        <h3>3. Raccourcis utiles</h3>
+        <ul>
+            <li><strong>◀ / ▶</strong> ou <strong>clic sur une urne</strong> : déplacer ton bouclier instantanément.
+            </li>
+            <li><strong>Espace</strong> : coup de sifflet (repousse les rivaux).</li>
+            <li><strong>V</strong> : activer/désactiver le mode Ralenti.</li>
+            <li><strong>S</strong> : figer (STOP) ou reprendre la partie.</li>
+            <li><strong>H</strong> : ouvrir/fermer ce volet (pause automatique).</li>
+        </ul>
+    </aside>
+
+    <!-- Commandes tactiles mobiles -->
+    <div class="controles-mobiles">
+        <div class="groupe-boutons">
+            <button type="button" id="btn-gauche">◀</button>
+            <button type="button" id="btn-droite">▶</button>
+        </div>
+        <div class="groupe-boutons">
+            <button type="button" id="btn-sifflet">SIFFLET</button>
+        </div>
+    </div>
+
+    <script>
+        // Récupération de la toile (canvas) et de son contexte graphique 2D
+        const canvas = document.getElementById("jeu");
+        const ctx = canvas.getContext("2d");
+
+        // Récupération des compteurs d'interface (DOM = Document Object Model)
+        const monCampHud = document.getElementById("mon-camp-hud");
+        const monScoreHud = document.getElementById("mon-score-hud");
+        const nbBloquesHud = document.getElementById("nb-bloques-hud");
+
+        // Récupération des boutons de contrôle
+        const voletRegles = document.getElementById("volet-regles");
+        const btnDemarrer = document.getElementById("btn-demarrer");
+        const btnVolet = document.getElementById("btn-volet");
+        const btnFermerVolet = document.getElementById("btn-fermer-volet");
+        const btnVitesse = document.getElementById("btn-vitesse");
+        const btnStop = document.getElementById("btn-stop");
+        const btnFullscreen = document.getElementById("btn-fullscreen");
+        const btnReset = document.getElementById("btn-reset");
+        const btnSon = document.getElementById("btn-son");
+
+        // Constantes de règles du jeu
+        const CAPACITE_URNE = 10;
+        const RECHARGE_SIFFLET_MS = 3000;
+        // Plafond maximal de votants simultanés sur le terrain (cap = limite de sécurité mémoire/CPU)
+        const MAX_VOTANTS = 9;
+        // Délai en millisecondes entre l'arrivée de deux renforts (6,5 secondes)
+        const DELAI_RENFORT_MS = 6500;
+
+        // Tableau des 5 camps disponibles avec leurs attributs visuels et leur compteur de votes
+        const CANDIDATS = [
+            { id: 0, famille: "LFI", couleur: "#d62828", peau: "#f4c095", cheveux: "#2b2d42", styleCheveux: "houppette", lunettes: false, votes: 0 },
+            { id: 1, famille: "ÉCOLO", couleur: "#2a9d8f", peau: "#eab689", cheveux: "#5c3a21", styleCheveux: "boucle", lunettes: true, votes: 0 },
+            { id: 2, famille: "CENTRE", couleur: "#f4a261", peau: "#f1c27d", cheveux: "#3d405b", styleCheveux: "raie", lunettes: true, votes: 0 },
+            { id: 3, famille: "DROITE", couleur: "#3a86ff", peau: "#e8b48c", cheveux: "#adb5bd", styleCheveux: "couronne", lunettes: false, votes: 0 },
+            { id: 4, famille: "RN", couleur: "#1d3557", peau: "#f0c29b", cheveux: "#d4a373", styleCheveux: "raie", lunettes: false, votes: 0 }
+        ];
+
+        // Morales satiriques tirées aléatoirement à chaque fin de partie (victoire ou défaite)
+        const MORALES_FIN = [
+            "Morale : À force de se bousculer pour gagner, on finit par ne plus savoir quoi voter.",
+            "Morale : Beaucoup de bruit, beaucoup de coups… et au final, le même bordel dans les urnes.",
+            "Morale : Chacun défend sa cause bec et ongles, mais qui écoute encore les électeurs ?",
+            "Morale : Victoire ou défaite, la vraie gagnante de ces guéguerres reste souvent la confusion."
+        ];
+        // Stocke la morale sélectionnée pour la partie terminée
+        let moraleActuelle = MORALES_FIN[0];
+
+        // --- Gestion du volet coulissant d'aide avec pause automatique ---
+        // Indique si le volet est actuellement ouvert (false = fermé, true = ouvert)
+        let voletOuvert = false;
+        // Mémorise si la partie tournait avant l'ouverture pour la relancer à la fermeture
+        let etaitEnCoursAvantVolet = false;
+
+        // Ouvre ou ferme le volet latéral (forceEtat permet d'imposer true ou false)
+        function basculerVolet(forceEtat = null) {
+            // Détermine l'état cible : utilise forceEtat s'il est fourni, sinon inverse (!) l'état actuel
+            const nouvelEtat = forceEtat !== null ? forceEtat : !voletOuvert;
+            // Garde-fou (guard clause) : stoppe si le volet est déjà dans l'état demandé
+            if (nouvelEtat === voletOuvert) return;
+            // Enregistre le nouvel état
+            voletOuvert = nouvelEtat;
+
+            // Bascule (toggle) la classe CSS "ouvert" pour animer le panneau
+            voletRegles.classList.toggle("ouvert", voletOuvert);
+            // Met en surbrillance le bouton Règles tant que le panneau est visible
+            btnVolet.classList.toggle("actif", voletOuvert);
+
+            // Si le joueur ouvre le volet des règles
+            if (voletOuvert) {
+                // Vérifie que la partie est active avant de la mettre en pause
+                if (etatJeu === "en_cours") {
+                    // Active le témoin mémoire (flag) pour la reprise automatique
+                    etaitEnCoursAvantVolet = true;
+                    // Fige la machine à états sur "stop"
+                    etatJeu = "stop";
+                    // Met à jour le texte du bouton STOP de façon sécurisée (textContent)
+                    btnStop.textContent = "REPRENDRE";
+                    // Ajoute la surbrillance rouge sur le bouton STOP
+                    btnStop.classList.add("actif");
+                }
+            } else {
+                // Si le joueur ferme le volet et que la pause provenait bien du volet
+                if (etaitEnCoursAvantVolet && etatJeu === "stop") {
+                    // Relance immédiatement la simulation
+                    etatJeu = "en_cours";
+                    // Restaure le libellé initial du bouton STOP
+                    btnStop.textContent = "STOP";
+                    // Retire la surbrillance rouge du bouton STOP
+                    btnStop.classList.remove("actif");
+                }
+                // Réinitialise systématiquement le témoin après fermeture
+                etaitEnCoursAvantVolet = false;
+            }
+        }
+
+        // Branche les événements de clic sur les boutons d'ouverture et de fermeture
+        btnVolet?.addEventListener("click", () => basculerVolet());
+        btnFermerVolet?.addEventListener("click", () => basculerVolet(false));
+
+        // --- Moteur sonore Web Audio API (synthèse sans fichier externe) ---
+        let sonActif = true;
+        let audioCtx = null;
+
+        // Initialise ou réveille le contexte audio après une action utilisateur
+        function assurerAudio() {
+            if (!sonActif) return null;
+            if (!audioCtx) {
+                const Ctor = window.AudioContext || window.webkitAudioContext;
+                if (Ctor) audioCtx = new Ctor();
+            }
+            if (audioCtx && audioCtx.state === "suspended") {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // Synthétise un coup de sifflet modulé (oscillateur principal + LFO = oscillateur basse fréquence)
+        function jouerSonSifflet() {
+            const ctxAudio = assurerAudio();
+            if (!ctxAudio) return;
+            const now = ctxAudio.currentTime;
+            const osc = ctxAudio.createOscillator();
+            const lfo = ctxAudio.createOscillator();
+            const lfoGain = ctxAudio.createGain();
+            const gain = ctxAudio.createGain();
+
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(2400, now);
+            lfo.type = "sine";
+            lfo.frequency.setValueAtTime(26, now);
+            lfoGain.gain.setValueAtTime(140, now);
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            gain.gain.setValueAtTime(0.13, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+            osc.connect(gain);
+            gain.connect(ctxAudio.destination);
+            osc.start(now);
+            lfo.start(now);
+            osc.stop(now + 0.23);
+            lfo.stop(now + 0.23);
+        }
+
+        // Synthétise un son clair lors de l'interception d'un bulletin adverse
+        function jouerSonInterception() {
+            const ctxAudio = assurerAudio();
+            if (!ctxAudio) return;
+            const now = ctxAudio.currentTime;
+            const osc = ctxAudio.createOscillator();
+            const gain = ctxAudio.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(720, now);
+            osc.frequency.exponentialRampToValueAtTime(1080, now + 0.1);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(ctxAudio.destination);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        }
+
+        // Synthétise le dépôt d'un bulletin dans une urne
+        function jouerSonBulletin(estMonCamp) {
+            const ctxAudio = assurerAudio();
+            if (!ctxAudio) return;
+            const now = ctxAudio.currentTime;
+            const osc = ctxAudio.createOscillator();
+            const gain = ctxAudio.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(estMonCamp ? 540 : 320, now);
+            osc.frequency.exponentialRampToValueAtTime(estMonCamp ? 680 : 260, now + 0.1);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+            osc.connect(gain);
+            gain.connect(ctxAudio.destination);
+            osc.start(now);
+            osc.stop(now + 0.12);
+        }
+
+        // Synthétise un bruit sourd lors d'une bousculade entre votants
+        function jouerSonBlocage() {
+            const ctxAudio = assurerAudio();
+            if (!ctxAudio) return;
+            const now = ctxAudio.currentTime;
+            const osc = ctxAudio.createOscillator();
+            const gain = ctxAudio.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(175, now);
+            osc.frequency.linearRampToValueAtTime(115, now + 0.11);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(ctxAudio.destination);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        }
+
+        // Synthétise une mélodie ascendante (victoire) ou descendante (défaite)
+        function jouerSonFin(victoireJoueur) {
+            const ctxAudio = assurerAudio();
+            if (!ctxAudio) return;
+            const notes = victoireJoueur ? [523.25, 659.25, 783.99, 1046.5] : [392.0, 349.23, 311.13, 261.63];
+            notes.forEach((freq, idx) => {
+                const start = ctxAudio.currentTime + idx * 0.12;
+                const osc = ctxAudio.createOscillator();
+                const gain = ctxAudio.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(freq, start);
+                gain.gain.setValueAtTime(0.16, start);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+                osc.connect(gain);
+                gain.connect(ctxAudio.destination);
+                osc.start(start);
+                osc.stop(start + 0.23);
+            });
+        }
+
+        // Bascule l'activation du son au clic sur le bouton Son
+        btnSon?.addEventListener("click", () => {
+            sonActif = !sonActif;
+            btnSon.textContent = sonActif ? "Son : ON" : "Son : MUET";
+            btnSon.classList.toggle("muet", !sonActif);
+            if (sonActif) {
+                assurerAudio();
+                jouerSonBulletin(true);
+            }
+        });
+
+        // --- Machine à états du jeu ---
+        // Valeurs possibles : "choix" (sélection du camp), "en_cours", "stop", "fin"
+        let etatJeu = "choix";
+        let monCampId = 0;
+        let indexBouclier = 0;
+        let modeRalenti = false;
+        let bulletinsBloques = 0;
+        let resultatPartie = null;
+        let gagnantUrne = null;
+
+        // Variables de messages, minutages (cooldowns) et compteurs
+        let messageEvenement = "ÉTAPE 1 : Clique sur ton urne   •   ÉTAPE 2 : Clique sur DÉMARRER";
+        let timerEvenement = 9999;
+        let dernierSifflet = 0;
+        let ondeSiffletTimer = 0;
+        let dernierBlocageSon = 0;
+        let dernierVoteAuto = 0;
+        let compteurCreation = 0;
+        // Accumulateur en millisecondes pour déclencher l'arrivée progressive des renforts
+        let chronoRenfort = 0;
+
+        // Tableaux d'entités actives sur le terrain
+        let votants = [];
+        let bulletinsVolants = [];
+        let bullesEffet = [];
+
+        // Retourne le multiplicateur de vitesse (0.5 en ralenti, 1.0 en normal)
+        function facteurVitesse() {
+            return modeRalenti ? 0.5 : 1.0;
+        }
+
+        // Met à jour les compteurs du HUD de façon sécurisée (textContent évite toute faille XSS)
+        function mettreAJourHud() {
+            const camp = CANDIDATS[monCampId];
+            monCampHud.textContent = camp.famille;
+            // Applique la couleur du camp en fond de badge pour garantir un fort contraste (ex. RN)
+            monCampHud.style.backgroundColor = camp.couleur;
+            monScoreHud.textContent = String(camp.votes);
+            nbBloquesHud.textContent = String(bulletinsBloques);
+        }
+
+        // Calcule les coordonnées géométriques des 5 urnes sur le canvas 800x600
+        function calculerPositionsUrnes() {
+            const margeX = 45;
+            const largeurTotale = canvas.width - margeX * 2;
+            const pasX = largeurTotale / CANDIDATS.length;
+            const largeurUrne = Math.min(118, pasX - 18);
+            const hauteurUrne = 132;
+            const yUrne = 205;
+
+            return CANDIDATS.map((cand, idx) => {
+                const centreX = margeX + pasX * (idx + 0.5);
+                return {
+                    ...cand,
+                    centreX,
+                    x: centreX - largeurUrne / 2,
+                    y: yUrne,
+                    largeur: largeurUrne,
+                    hauteur: hauteurUrne
+                };
+            });
+        }
+
+        // Fabrique (factory) un objet votant neuf avec un comportement aléatoire de perturbateur (55 % de chance)
+        function creerNouveauVotant(campId, posX, posY, delaiVote) {
+            return {
+                x: posX,
+                y: posY,
+                vx: 0,
+                vy: 0,
+                pousseeX: 0,
+                pousseeY: 0,
+                campId,
+                bulletinCampId: campId,
+                urneViseeId: campId,
+                brasBloqueTimer: 0,
+                // Immunité temporaire après une bousculade pour empêcher les blocages infinis
+                immuniteBlocage: 0,
+                cooldownVote: delaiVote,
+                // Si true, ce votant cherchera aléatoirement à bousculer un rival proche des urnes
+                perturbateur: Math.random() < 0.55
+            };
+        }
+
+        // Initialise 4 votants échelonnés au départ de la partie
+        function initialiserVotants() {
+            compteurCreation = 0;
+            chronoRenfort = 0;
+            votants = [];
+            for (let i = 0; i < 4; i++) {
+                // Garantit qu'au moins un votant de ton camp est présent dès le début
+                const campId = i === 0 ? monCampId : (monCampId + i) % CANDIDATS.length;
+                votants.push(creerNouveauVotant(campId, 110 + i * 190, 545 + i * 25, 650 + i * 400));
+            }
+        }
+
+        // Démarre la partie une fois que le joueur a validé son camp
+        function demarrerPartie() {
+            if (etatJeu !== "choix") return;
+            assurerAudio();
+            etatJeu = "en_cours";
+            indexBouclier = monCampId;
+            initialiserVotants();
+            btnDemarrer.style.display = "none";
+            messageEvenement = "C'est parti ! Bloque les urnes adverses avec ton bouclier bleu !";
+            timerEvenement = 130;
+        }
+
+        btnDemarrer?.addEventListener("click", demarrerPartie);
+
+        // Bascule le mode ralenti
+        btnVitesse?.addEventListener("click", () => {
+            modeRalenti = !modeRalenti;
+            btnVitesse.textContent = modeRalenti ? "Ralenti : ON" : "Ralenti : OFF";
+            btnVitesse.classList.toggle("ralenti", modeRalenti);
+        });
+
+        // Bascule l'état STOP / REPRENDRE manuellement
+        btnStop?.addEventListener("click", () => {
+            if (etatJeu === "choix" || etatJeu === "fin") return;
+            etatJeu = etatJeu === "stop" ? "en_cours" : "stop";
+            btnStop.textContent = etatJeu === "stop" ? "REPRENDRE" : "STOP";
+            btnStop.classList.toggle("actif", etatJeu === "stop");
+        });
+
+        // Remet toute la partie à zéro et revient sur l'écran de choix du camp
+        function reinitialiserPartie() {
+            CANDIDATS.forEach((c) => { c.votes = 0; });
+            etatJeu = "choix";
+            etaitEnCoursAvantVolet = false;
+            chronoRenfort = 0;
+            resultatPartie = null;
+            gagnantUrne = null;
+            bulletinsBloques = 0;
+            bulletinsVolants = [];
+            bullesEffet = [];
+            votants = [];
+            ondeSiffletTimer = 0;
+            dernierSifflet = 0;
+            btnDemarrer.style.display = "inline-block";
+            btnStop.textContent = "STOP";
+            btnStop.classList.remove("actif");
+            messageEvenement = "ÉTAPE 1 : Clique sur ton urne   •   ÉTAPE 2 : Clique sur DÉMARRER";
+            timerEvenement = 9999;
+            mettreAJourHud();
+        }
+
+        btnReset?.addEventListener("click", reinitialiserPartie);
+
+        // Action du Sifflet : repousse les votants rivaux vers le bas (recharge 3 s)
+        function actionSifflet() {
+            if (etatJeu !== "en_cours") return;
+            const maintenant = Date.now();
+            if (maintenant - dernierSifflet < RECHARGE_SIFFLET_MS) return;
+
+            dernierSifflet = maintenant;
+            assurerAudio();
+            jouerSonSifflet();
+            ondeSiffletTimer = 24;
+
+            let repousses = 0;
+            for (const v of votants) {
+                if (v.campId !== monCampId && v.y < 510) {
+                    v.pousseeY = 6.5;
+                    v.brasBloqueTimer = 0;
+                    repousses += 1;
+                }
+            }
+
+            messageEvenement = repousses > 0
+                ? `SIFFLET ! ${repousses} rival(aux) repoussé(s) loin des urnes !`
+                : "SIFFLET ! Passage dégagé.";
+            timerEvenement = 80;
+        }
+
+        // Envoie un bulletin depuis un votant vers l'urne visée
+        function lancerBulletin(bulletinCampId, urneIndex, departX, departY) {
+            if (etatJeu !== "en_cours") return;
+            const urnes = calculerPositionsUrnes();
+            const urneCible = urnes[urneIndex];
+
+            bulletinsVolants.push({
+                x: departX,
+                y: departY,
+                cibleX: urneCible.centreX,
+                cibleY: urneCible.y + 18,
+                bulletinCampId,
+                urneIndex,
+                progres: 0
+            });
+        }
+
+        // Traite l'arrivée d'un bulletin : interception par le bouclier ou validation du vote
+        function traiterArriveeBulletin(b) {
+            if (etatJeu !== "en_cours") return;
+            const urne = CANDIDATS[b.urneIndex];
+            const urnes = calculerPositionsUrnes();
+            const posUrne = urnes[b.urneIndex];
+
+            // Si ton bouclier est sous une URNE ADVERSE, tu interceptes et détruis le bulletin
+            if (indexBouclier === b.urneIndex && b.urneIndex !== monCampId) {
+                bulletinsBloques += 1;
+                mettreAJourHud();
+                jouerSonInterception();
+                bullesEffet.push({
+                    x: posUrne.centreX,
+                    y: posUrne.y + posUrne.hauteur - 10,
+                    texte: "INTERCEPTÉ !",
+                    couleurFond: "#2563eb",
+                    duree: 42
+                });
+                messageEvenement = `Bien joué ! Bulletin bloqué devant l'urne ${urne.famille} !`;
+                timerEvenement = 80;
+                return;
+            }
+
+            // Sinon le bulletin entre dans l'urne
+            urne.votes += 1;
+            mettreAJourHud();
+            jouerSonBulletin(urne.id === monCampId);
+
+            // Vérifie si l'urne vient d'atteindre 10/10 (fin de partie)
+            if (urne.votes >= CAPACITE_URNE) {
+                etatJeu = "fin";
+                gagnantUrne = urne;
+                resultatPartie = urne.id === monCampId ? "victoire" : "defaite";
+                // Tire une morale satirique aléatoire pour l'écran de fin
+                moraleActuelle = MORALES_FIN[Math.floor(Math.random() * MORALES_FIN.length)];
+                bulletinsVolants = [];
+                jouerSonFin(resultatPartie === "victoire");
+            }
+        }
+
+        // Gestion du clic / toucher directement sur le canvas
+        canvas.addEventListener("pointerdown", (e) => {
+            assurerAudio();
+            if (etatJeu === "stop" || etatJeu === "fin") return;
+
+            // Convertit les coordonnées écran en coordonnées internes 800x600
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            // Pendant la phase "choix", un clic sur le bouton central lance la partie
+            if (etatJeu === "choix" && x >= 250 && x <= 550 && y >= 435 && y <= 500) {
+                demarrerPartie();
+                return;
+            }
+
+            // Détecte quelle urne (0 à 4) a été cliquée
+            const urnes = calculerPositionsUrnes();
+            const cliquee = urnes.findIndex(
+                (u) => x >= u.x - 8 && x <= u.x + u.largeur + 8 && y >= u.y - 80 && y <= u.y + u.hauteur + 35
+            );
+            if (cliquee !== -1) {
+                if (etatJeu === "choix") {
+                    monCampId = cliquee;
+                    indexBouclier = cliquee;
+                    mettreAJourHud();
+                } else {
+                    indexBouclier = cliquee;
+                }
+            }
+        });
+
+        // Contrôles au clavier
+        window.addEventListener("keydown", (e) => {
+            if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+                e.preventDefault();
+            }
+            if (e.key === "ArrowLeft") {
+                if (etatJeu === "choix") {
+                    monCampId = (monCampId - 1 + CANDIDATS.length) % CANDIDATS.length;
+                    indexBouclier = monCampId;
+                    mettreAJourHud();
+                } else if (etatJeu === "en_cours") {
+                    indexBouclier = (indexBouclier - 1 + CANDIDATS.length) % CANDIDATS.length;
+                }
+            } else if (e.key === "ArrowRight") {
+                if (etatJeu === "choix") {
+                    monCampId = (monCampId + 1) % CANDIDATS.length;
+                    indexBouclier = monCampId;
+                    mettreAJourHud();
+                } else if (etatJeu === "en_cours") {
+                    indexBouclier = (indexBouclier + 1) % CANDIDATS.length;
+                }
+            } else if (e.key === " ") {
+                if (etatJeu === "choix") {
+                    demarrerPartie();
+                } else {
+                    actionSifflet();
+                }
+            } else if (e.key === "Enter" && etatJeu === "choix") {
+                demarrerPartie();
+            } else if (["1", "2", "3", "4", "5"].includes(e.key)) {
+                const idx = parseInt(e.key, 10) - 1;
+                if (etatJeu === "choix") {
+                    monCampId = idx;
+                    indexBouclier = idx;
+                    mettreAJourHud();
+                } else if (etatJeu === "en_cours") {
+                    indexBouclier = idx;
+                }
+            } else if (e.key === "v" || e.key === "V") {
+                btnVitesse?.click();
+            } else if (e.key === "s" || e.key === "S") {
+                btnStop?.click();
+            } else if (e.key === "h" || e.key === "H") {
+                basculerVolet();
+            } else if (e.key === "r" || e.key === "R") {
+                reinitialiserPartie();
+            }
+        });
+
+        // Contrôles tactiles mobiles en bas de l'écran
+        document.getElementById("btn-gauche")?.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            if (etatJeu === "choix") {
+                monCampId = (monCampId - 1 + CANDIDATS.length) % CANDIDATS.length;
+                indexBouclier = monCampId;
+                mettreAJourHud();
+            } else if (etatJeu === "en_cours") {
+                indexBouclier = (indexBouclier - 1 + CANDIDATS.length) % CANDIDATS.length;
+            }
+        });
+        document.getElementById("btn-droite")?.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            if (etatJeu === "choix") {
+                monCampId = (monCampId + 1) % CANDIDATS.length;
+                indexBouclier = monCampId;
+                mettreAJourHud();
+            } else if (etatJeu === "en_cours") {
+                indexBouclier = (indexBouclier + 1) % CANDIDATS.length;
+            }
+        });
+        document.getElementById("btn-sifflet")?.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            if (etatJeu === "choix") {
+                demarrerPartie();
+            } else {
+                actionSifflet();
+            }
+        });
+
+        // --- Gestion du plein écran (API native + repli CSS mobile) ---
+        function estEnPleinEcran() {
+            return Boolean(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.body.classList.contains("fullscreen-jeu")
+            );
+        }
+
+        function mettreAJourLibelleFullscreen() {
+            if (!btnFullscreen) return;
+            btnFullscreen.textContent = estEnPleinEcran() ? "Quitter" : "Plein écran";
+        }
+
+        async function basculerPleinEcran() {
+            const cible = document.documentElement;
+            const requestFn = cible.requestFullscreen || cible.webkitRequestFullscreen;
+            const exitFn = document.exitFullscreen || document.webkitExitFullscreen;
+            const natifActif = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+            try {
+                if (!natifActif && requestFn) {
+                    await requestFn.call(cible);
+                    document.body.classList.add("fullscreen-jeu");
+                    mettreAJourLibelleFullscreen();
+                    return;
+                }
+                if (natifActif && exitFn) {
+                    await exitFn.call(document);
+                    document.body.classList.remove("fullscreen-jeu");
+                    mettreAJourLibelleFullscreen();
+                    return;
+                }
+            } catch (err) {
+                // Repli silencieux vers la classe CSS plein écran si bloqué sur iOS
+            }
+            document.body.classList.toggle("fullscreen-jeu");
+            mettreAJourLibelleFullscreen();
+        }
+
+        btnFullscreen?.addEventListener("click", basculerPleinEcran);
+        document.addEventListener("fullscreenchange", () => {
+            if (!document.fullscreenElement) document.body.classList.remove("fullscreen-jeu");
+            mettreAJourLibelleFullscreen();
+        });
+
+        // Met à jour les déplacements, les bousculades aléatoires près des urnes et les renforts
+        function mettreAJourVotants(maintenant) {
+            if (etatJeu !== "en_cours") return;
+            const fv = facteurVitesse();
+            const urnes = calculerPositionsUrnes();
+
+            // Arrivée progressive des renforts jusqu'au plafond MAX_VOTANTS
+            chronoRenfort += 16 * fv;
+            if (chronoRenfort >= DELAI_RENFORT_MS && votants.length < MAX_VOTANTS) {
+                chronoRenfort = 0;
+                compteurCreation += 1;
+                const nouveauCamp = compteurCreation % CANDIDATS.length;
+                votants.push(creerNouveauVotant(nouveauCamp, 75 + Math.random() * (canvas.width - 150), 570, 900));
+                messageEvenement = `Renfort ${CANDIDATS[nouveauCamp].famille} ! (${votants.length}/${MAX_VOTANTS} votants)`;
+                timerEvenement = 75;
+            }
+
+            for (let i = 0; i < votants.length; i++) {
+                const v = votants[i];
+                const urneCible = urnes[v.urneViseeId];
+                let cibleX = urneCible.centreX;
+                let cibleY = 372;
+
+                // Si ce votant est perturbateur et approche des urnes, il dévie vers un rival proche prêt à voter
+                if (v.perturbateur && v.immuniteBlocage === 0 && v.y < 475) {
+                    const rivalProche = votants.find(
+                        (autre) =>
+                            autre !== v &&
+                            autre.campId !== v.campId &&
+                            autre.y < 435 &&
+                            Math.hypot(autre.x - v.x, autre.y - v.y) < 155
+                    );
+                    if (rivalProche) {
+                        cibleX = rivalProche.x;
+                        cibleY = rivalProche.y;
+                    }
+                }
+
+                // Marche vers l'urne ou vers le rival à bousculer
+                const dx = cibleX - v.x;
+                const dy = cibleY - v.y;
+                v.vx = Math.max(-1.05, Math.min(1.05, dx * 0.018)) * fv;
+                v.vy = Math.max(-0.8, Math.min(0.8, dy * 0.014)) * fv;
+
+                v.x += v.vx + v.pousseeX * fv;
+                v.y += v.vy + v.pousseeY * fv;
+                v.pousseeX *= 0.84;
+                v.pousseeY *= 0.84;
+
+                if (v.brasBloqueTimer > 0) v.brasBloqueTimer -= 1;
+                if (v.immuniteBlocage > 0) v.immuniteBlocage -= 1;
+
+                v.x = Math.max(45, Math.min(canvas.width - 45, v.x));
+                v.y = Math.max(365, Math.min(575, v.y));
+
+                // Détection des bousculades entre camps rivaux
+                for (let j = i + 1; j < votants.length; j++) {
+                    const w = votants[j];
+                    if (v.immuniteBlocage > 0 || w.immuniteBlocage > 0) continue;
+
+                    const distX = w.x - v.x;
+                    const distY = w.y - v.y;
+                    const dist = Math.hypot(distX, distY);
+
+                    if (dist < 46 && v.campId !== w.campId) {
+                        const nx = dist > 0 ? distX / dist : 1;
+                        v.pousseeX = -nx * 4.4;
+                        w.pousseeX = nx * 4.4;
+                        v.pousseeY = 2.4;
+                        w.pousseeY = 2.4;
+                        v.brasBloqueTimer = 16;
+                        w.brasBloqueTimer = 16;
+                        // Immunité courte (~1,1 s) pour favoriser des bousculades régulières sans blocage infini
+                        v.immuniteBlocage = 65;
+                        w.immuniteBlocage = 65;
+
+                        // Si l'accrochage a lieu près des urnes : 65 % de chance d'annuler le vote !
+                        const presDesUrnes = v.y < 440 || w.y < 440;
+                        let bulletinAnnule = false;
+
+                        if (presDesUrnes && Math.random() < 0.65) {
+                            bulletinAnnule = true;
+                            // Choisit aléatoirement la victime (ou les deux dans 30 % des cas)
+                            const lesDeux = Math.random() < 0.30;
+                            const victimes = lesDeux ? [v, w] : [Math.random() < 0.5 ? v : w];
+
+                            for (const vic of victimes) {
+                                // Repousse nettement la victime vers le bas sans qu'elle ne dépose son bulletin
+                                vic.y = Math.min(555, vic.y + 85);
+                                vic.pousseeY = 3.8;
+                                vic.cooldownVote = 1600 + Math.random() * 900;
+                                vic.urneViseeId = vic.campId;
+                            }
+                        } else if (Math.random() < 0.40) {
+                            // Sinon, déviation occasionnelle vers une autre urne
+                            const autres = CANDIDATS.map((c) => c.id).filter((id) => id !== v.campId);
+                            v.urneViseeId = autres[Math.floor(Math.random() * autres.length)];
+                        }
+
+                        if (maintenant - dernierBlocageSon > 750) {
+                            dernierBlocageSon = maintenant;
+                            bullesEffet.push({
+                                x: (v.x + w.x) / 2,
+                                y: Math.min(v.y, w.y) - 30,
+                                texte: bulletinAnnule ? "BULLETIN PERDU !" : "BLOQUÉ !",
+                                couleurFond: bulletinAnnule ? "#d97706" : "#e63946",
+                                duree: 34
+                            });
+                            if (bulletinAnnule) {
+                                messageEvenement = "Bousculade devant les urnes : bulletin annulé !";
+                                timerEvenement = 75;
+                            }
+                            jouerSonBlocage();
+                        }
+                    }
+                }
+
+                // Dépôt du bulletin devant l'urne puis réapparition en bas
+                v.cooldownVote -= 16 * fv;
+                if (v.y <= 386 && v.cooldownVote <= 0 && maintenant - dernierVoteAuto > 800) {
+                    dernierVoteAuto = maintenant;
+                    lancerBulletin(v.bulletinCampId, v.urneViseeId, v.x, v.y - 18);
+
+                    compteurCreation += 1;
+                    const nouveauCamp = compteurCreation % CANDIDATS.length;
+                    v.campId = nouveauCamp;
+                    v.bulletinCampId = nouveauCamp;
+                    v.urneViseeId = nouveauCamp;
+                    v.y = 570;
+                    v.x = 75 + Math.random() * (canvas.width - 150);
+                    v.immuniteBlocage = 0;
+                    v.perturbateur = Math.random() < 0.55;
+                    v.cooldownVote = 1200 + Math.random() * 800;
+                }
+            }
+        }
+
+        // Dessine une tête caricaturée stylisée au-dessus de son urne
+        function dessinerTeteStylisee(cand, cx, cy, estMonCamp, rayon = 19) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            if (estMonCamp) {
+                ctx.strokeStyle = "#ffd166";
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, rayon + 6, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = cand.peau;
+            ctx.beginPath();
+            ctx.arc(0, 0, rayon, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = cand.couleur;
+            ctx.lineWidth = 2.8;
+            ctx.stroke();
+
+            ctx.fillStyle = cand.cheveux;
+            if (cand.styleCheveux === "houppette") {
+                ctx.beginPath();
+                ctx.arc(0, -rayon * 0.8, rayon * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (cand.styleCheveux === "couronne") {
+                ctx.beginPath();
+                ctx.arc(0, -1, rayon + 1, Math.PI * 0.85, Math.PI * 2.15);
+                ctx.fill();
+                ctx.fillStyle = cand.peau;
+                ctx.beginPath();
+                ctx.arc(0, -5, rayon * 0.75, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (cand.styleCheveux === "boucle") {
+                ctx.beginPath();
+                ctx.arc(-9, -17, 7, 0, Math.PI * 2);
+                ctx.arc(0, -20, 8, 0, Math.PI * 2);
+                ctx.arc(9, -17, 7, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, -2, rayon, Math.PI, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = "#111";
+            ctx.fillRect(-8, -3, 4.5, 4.5);
+            ctx.fillRect(3.5, -3, 4.5, 4.5);
+            if (cand.lunettes) {
+                ctx.strokeStyle = "#1d3557";
+                ctx.lineWidth = 1.8;
+                ctx.strokeRect(-12, -5.5, 9, 9);
+                ctx.strokeRect(3, -5.5, 9, 9);
+                ctx.beginPath();
+                ctx.moveTo(-3, -1);
+                ctx.lineTo(3, -1);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = "#5c1a1a";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 6.5, 6.5, 0.12 * Math.PI, 0.88 * Math.PI);
+            ctx.stroke();
+
+            ctx.fillStyle = cand.couleur;
+            ctx.fillRect(-40, rayon + 4, 80, 17);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 9.5px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(cand.famille, 0, rayon + 13);
+            ctx.restore();
+        }
+
+        // Dessine une urne, met en valeur le choix au départ, et affiche le bouclier en partie
+        function dessinerUrne(urne, estMonCamp, aLeBouclier, maintenant) {
+            const { x, y, largeur, hauteur, votes, couleur } = urne;
+            const ratio = Math.min(1, votes / CAPACITE_URNE);
+            const hauteurRemplie = (hauteur - 18) * ratio;
+
+            ctx.save();
+            // Pendant la phase "choix", assombrit les urnes non sélectionnées pour faire ressortir ton choix
+            if (etatJeu === "choix" && !estMonCamp) {
+                ctx.globalAlpha = 0.38;
+            }
+
+            // Pendant la phase "choix", affiche un halo doré et une flèche animée au-dessus du camp choisi
+            if (etatJeu === "choix" && estMonCamp) {
+                const rebond = Math.sin(maintenant * 0.008) * 5;
+                ctx.fillStyle = "#ffd166";
+                ctx.font = "bold 12px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("▼ TON CHOIX ▼", urne.centreX, y - 82 + rebond);
+
+                ctx.shadowColor = "#ffd166";
+                ctx.shadowBlur = 16;
+            }
+
+            dessinerTeteStylisee(urne, urne.centreX, y - 48, estMonCamp, 19);
+
+            ctx.fillStyle = "#1b2234";
+            ctx.fillRect(x, y, largeur, hauteur);
+
+            if (hauteurRemplie > 0) {
+                ctx.fillStyle = couleur;
+                ctx.fillRect(x + 4, y + hauteur - 4 - hauteurRemplie, largeur - 8, hauteurRemplie);
+            }
+
+            ctx.strokeStyle = estMonCamp ? "#ffd166" : "#8d99ae";
+            ctx.lineWidth = estMonCamp ? 4 : 2;
+            ctx.strokeRect(x, y, largeur, hauteur);
+            ctx.shadowBlur = 0;
+
+            // Fente d'insertion du bulletin
+            ctx.fillStyle = "#0b0e17";
+            ctx.fillRect(x + largeur * 0.22, y + 6, largeur * 0.56, 6);
+
+            // Compteur X/10 au centre de l'urne
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 16px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`${votes}/${CAPACITE_URNE}`, urne.centreX, y + hauteur / 2 + 6);
+
+            // Dessine ton bouclier d'interception / protection sous l'urne sélectionnée en cours de partie
+            if (aLeBouclier && etatJeu === "en_cours") {
+                const py = y + hauteur + 12;
+                ctx.strokeStyle = estMonCamp ? "#ffd166" : "#4cc9f0";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(x + 10, py);
+                ctx.lineTo(x + 22, py + 11);
+                ctx.lineTo(x + largeur - 22, py + 11);
+                ctx.lineTo(x + largeur - 10, py);
+                ctx.stroke();
+
+                ctx.fillStyle = estMonCamp ? "#ffd166" : "#4cc9f0";
+                ctx.font = "bold 9.5px sans-serif";
+                ctx.fillText(estMonCamp ? "PROTÉGÉ" : "BLOQUEUR", urne.centreX, py + 23);
+            }
+
+            ctx.restore();
+        }
+
+        // Dessine la barre de recharge du sifflet en bas à gauche du canvas
+        function dessinerJaugeSifflet(maintenant) {
+            if (etatJeu !== "en_cours") return;
+            const ecoule = Math.min(RECHARGE_SIFFLET_MS, maintenant - dernierSifflet);
+            const ratio = ecoule / RECHARGE_SIFFLET_MS;
+            const pret = ratio >= 1;
+
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(20, 568, 150, 16);
+            ctx.fillStyle = pret ? "#2a9d8f" : "#64748b";
+            ctx.fillRect(20, 568, 150 * ratio, 16);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(20, 568, 150, 16);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(pret ? "SIFFLET PRÊT (Espace)" : "Recharge sifflet...", 95, 576);
+        }
+
+        // Boucle principale d'animation (~60 images/seconde via requestAnimationFrame)
+        function boucleJeu() {
+            const maintenant = Date.now();
+            const fv = facteurVitesse();
+            mettreAJourVotants(maintenant);
+
+            // Efface tout le canvas à chaque image
+            ctx.fillStyle = "#101522";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Consigne en haut du canvas
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "13px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(
+                etatJeu === "choix"
+                    ? "PHASE DE CHOIX : clique sur une urne (ou touches 1-5), puis clique sur DÉMARRER !"
+                    : `Ton camp : ${CANDIDATS[monCampId].famille} • ◀ ▶ / clic = Bouclier • Espace = Sifflet`,
+                canvas.width / 2,
+                24
+            );
+
+            // Message d'événement doré sous la consigne
+            if (timerEvenement > 0 && messageEvenement) {
+                ctx.fillStyle = "#ffd166";
+                ctx.font = "bold 13.5px sans-serif";
+                ctx.fillText(messageEvenement, canvas.width / 2, 72);
+                if (etatJeu === "en_cours") timerEvenement -= 1;
+            }
+
+            // Dessin des 5 urnes
+            const urnes = calculerPositionsUrnes();
+            urnes.forEach((urne, idx) => {
+                dessinerUrne(urne, idx === monCampId, idx === indexBouclier, maintenant);
+            });
+
+            // Ligne pointillée marquant la zone de dépôt devant les urnes
+            ctx.strokeStyle = "rgba(255, 209, 102, 0.25)";
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.moveTo(35, 390);
+            ctx.lineTo(canvas.width - 35, 390);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Bouton central pulsant pendant la phase de choix pour lancer la partie
+            if (etatJeu === "choix") {
+                const pulsation = 1 + Math.sin(maintenant * 0.006) * 0.03;
+                ctx.save();
+                ctx.translate(400, 467);
+                ctx.scale(pulsation, pulsation);
+                ctx.fillStyle = "#16a34a";
+                ctx.fillRect(-150, -32, 300, 64);
+                ctx.strokeStyle = "#86efac";
+                ctx.lineWidth = 3.5;
+                ctx.strokeRect(-150, -32, 300, 64);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 20px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(`▶ DÉMARRER (${CANDIDATS[monCampId].famille})`, 0, 0);
+                ctx.restore();
+            }
+
+            // Onde visuelle du sifflet
+            if (ondeSiffletTimer > 0) {
+                ctx.strokeStyle = "rgba(76, 201, 240, 0.65)";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(40, 440);
+                ctx.lineTo(canvas.width - 40, 440);
+                ctx.stroke();
+                if (etatJeu === "en_cours") ondeSiffletTimer -= 1;
+            }
+
+            // Dessin des votants en mouvement
+            for (const v of votants) {
+                const camp = CANDIDATS[v.campId];
+                const bulletin = CANDIDATS[v.bulletinCampId];
+                ctx.save();
+                ctx.translate(v.x, v.y);
+
+                if (v.brasBloqueTimer > 0) {
+                    ctx.strokeStyle = "#ffd166";
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(-24, -2);
+                    ctx.lineTo(24, -2);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = camp.couleur;
+                ctx.beginPath();
+                ctx.arc(0, 0, 13, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.lineWidth = v.campId === monCampId ? 3 : 1.8;
+                ctx.strokeStyle = v.campId === monCampId ? "#ffd166" : "#ffffff";
+                ctx.stroke();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(-10, -23, 20, 9);
+                ctx.strokeStyle = bulletin.couleur;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-10, -23, 20, 9);
+
+                ctx.fillStyle = "#0b0e17";
+                ctx.fillRect(-20, 15, 40, 13);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 8px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(camp.famille, 0, 22);
+                ctx.restore();
+            }
+
+            // Animation des bulletins volants vers les urnes
+            if (etatJeu === "en_cours") {
+                for (let i = bulletinsVolants.length - 1; i >= 0; i--) {
+                    const b = bulletinsVolants[i];
+                    b.progres += 0.055 * fv;
+                    const t = Math.min(1, b.progres);
+                    const curX = b.x + (b.cibleX - b.x) * t;
+                    const curY = b.y + (b.cibleY - b.y) * t - Math.sin(t * Math.PI) * 35;
+
+                    ctx.save();
+                    ctx.translate(curX, curY);
+                    ctx.rotate(t * Math.PI * 2);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(-15, -9, 30, 18);
+                    ctx.strokeStyle = CANDIDATS[b.bulletinCampId].couleur;
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(-15, -9, 30, 18);
+                    ctx.restore();
+
+                    if (b.progres >= 1) {
+                        traiterArriveeBulletin(b);
+                        bulletinsVolants.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            // Dessin des bulles d'effet ("INTERCEPTÉ !", "BULLETIN PERDU !", "BLOQUÉ !")
+            for (let i = bullesEffet.length - 1; i >= 0; i--) {
+                const b = bullesEffet[i];
+                ctx.save();
+                ctx.fillStyle = b.couleurFond;
+                ctx.fillRect(b.x - 52, b.y - 11, 104, 20);
+                ctx.strokeStyle = "#ffd166";
+                ctx.lineWidth = 1.8;
+                ctx.strokeRect(b.x - 52, b.y - 11, 104, 20);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 9.5px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(b.texte, b.x, b.y - 1);
+                ctx.restore();
+
+                if (etatJeu === "en_cours") {
+                    b.y -= 0.4 * fv;
+                    b.duree -= 1;
+                }
+                if (b.duree <= 0) bullesEffet.splice(i, 1);
+            }
+
+            // Jauge de recharge du sifflet
+            dessinerJaugeSifflet(maintenant);
+
+            // Voile de pause si STOP est enclenché
+            if (etatJeu === "stop") {
+                ctx.fillStyle = "rgba(10, 14, 24, 0.58)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#ffd166";
+                ctx.font = "bold 34px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("STOP — PARTIE FIGÉE", canvas.width / 2, canvas.height / 2);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "18px sans-serif";
+                ctx.fillText("Clique sur REPRENDRE ou ferme les Règles", canvas.width / 2, canvas.height / 2 + 34);
+            }
+
+            // Écran final de victoire ou de défaite avec morale satirique
+            if (etatJeu === "fin" && gagnantUrne) {
+                ctx.fillStyle = "rgba(10, 14, 24, 0.88)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                dessinerTeteStylisee(gagnantUrne, canvas.width / 2, canvas.height / 2 - 110, true, 24);
+
+                const titreFin = resultatPartie === "victoire"
+                    ? `VICTOIRE ! ${gagnantUrne.famille} GAGNE (10/10)`
+                    : `DÉFAITE ! ${gagnantUrne.famille} A REMPLI SON URNE`;
+
+                ctx.fillStyle = resultatPartie === "victoire" ? "#ffd166" : "#ff6b6b";
+                ctx.font = "bold 28px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(titreFin, canvas.width / 2, canvas.height / 2 - 28);
+
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "18px sans-serif";
+                ctx.fillText(
+                    `Bulletins adverses interceptés : ${bulletinsBloques} — Clique sur Reset`,
+                    canvas.width / 2,
+                    canvas.height / 2 + 12
+                );
+
+                // Encadré de la morale satirique tirée au sort
+                ctx.fillStyle = "rgba(255, 209, 102, 0.14)";
+                ctx.fillRect(50, canvas.height / 2 + 48, canvas.width - 100, 56);
+                ctx.strokeStyle = "#ffd166";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(50, canvas.height / 2 + 48, canvas.width - 100, 56);
+
+                ctx.fillStyle = "#fde68a";
+                ctx.font = "italic 14.5px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(moraleActuelle, canvas.width / 2, canvas.height / 2 + 76);
+            }
+
+            // Planifie la prochaine image auprès du navigateur
+            requestAnimationFrame(boucleJeu);
+        }
+
+        // Initialisation de l'interface et démarrage de la boucle de rendu (en état "choix")
+        mettreAJourHud();
+        boucleJeu();
+    </script>
+</body>
+
+</html>
