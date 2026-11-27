@@ -1568,53 +1568,59 @@
         mettreAJourHud();
         boucleJeu();
 
-        // --- Compteur de visites sans te compter (API CounterAPI + localStorage) ---
-        // Fonction asynchrone (async = qui attend une réponse réseau sans bloquer le jeu)
+        /// --- Compteur de visites corrigé (API CounterAPI + localStorage) ---
+        // Déclare une fonction asynchrone (async = n'interrompt pas l'animation du jeu pendant l'appel réseau)
         async function gererCompteurVisites() {
-            // Récupère l'élément HTML qui affichera le nombre de visites
+            // Récupère la balise <span> où sera affiché le nombre de visites
             const elCompteur = document.getElementById("compteur-visites");
-            // Garde-fou (guard clause) : quitte la fonction si l'élément n'existe pas dans le DOM
+            // Garde-fou (guard clause) : stoppe l'exécution si la balise est introuvable
             if (!elCompteur) return;
 
-            // Lit les paramètres de l'URL actuelle (ex. ?moi=1) via URLSearchParams
+            // Lit les paramètres d'URL (ex. ?moi=1) avec URLSearchParams
             const params = new URLSearchParams(window.location.search);
-            // Vérifie si tu as passé ?moi=1 dans l'adresse pour marquer ton propre navigateur
+            // Si ?moi=1 est présent dans l'adresse, on marque ce navigateur comme étant le tien
             if (params.get("moi") === "1") {
-                // Enregistre durablement un témoin (flag) dans le stockage local du navigateur (localStorage)
+                // Sauvegarde persistante dans le navigateur (localStorage = stockage local)
                 localStorage.setItem("jlb_ignorer_visite", "oui");
             }
 
-            // Détecte si tu es en train de tester en local sur ton PC (localhost ou 127.0.0.1)
+            // Vérifie si la page tourne en local sur ton PC (localhost ou 127.0.0.1)
             const estEnLocal = ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
-            // Vérifie si ce navigateur a été marqué comme étant le tien
+            // Vérifie si ce navigateur est exclu du comptage
             const estCreateur = localStorage.getItem("jlb_ignorer_visite") === "oui";
-            // Vérifie si le visiteur a déjà été compté dans cet onglet (sessionStorage = durée de l'onglet)
+            // Vérifie si l'onglet actuel a déjà été compté (sessionStorage = mémoire de l'onglet)
             const dejaCompte = sessionStorage.getItem("visite_deja_comptee") === "oui";
 
-            // Choisit l'action de l'API : "get" (lecture seule) si c'est toi ou un rafraîchissement, sinon "up" (+1)
-            const action = (estEnLocal || estCreateur || dejaCompte) ? "get" : "up";
-            // Construit l'URL de l'API CounterAPI (namespace = ton pseudo, key = nom du jeu)
-            const urlApi = `https://api.counterapi.dev/v1/jlb30350/bousculade-aux-urnes/${action}`;
+            // Détermine s'il faut incrémenter (+1) ou simplement lire le compteur
+            const doitIncrementer = !(estEnLocal || estCreateur || dejaCompte);
+            // Construit l'URL exacte : "/up" pour ajouter 1, rien à la fin pour lire uniquement
+            const urlApi = doitIncrementer
+                ? "https://api.counterapi.dev/v1/jlb30350/bousculade-aux-urnes/up"
+                : "https://api.counterapi.dev/v1/jlb30350/bousculade-aux-urnes/";
 
-            // Bloc try/catch (essayer/attraper) pour éviter que le jeu ne plante si l'API est hors ligne
+            // Isole l'appel réseau dans try/catch (essayer/attraper) pour protéger le jeu
             try {
-                // Envoie une requête réseau HTTP GET (fetch = récupérer) et attend la réponse (await)
+                // Envoie la requête HTTP GET (fetch = récupérer) et attend la réponse (await)
                 const reponse = await fetch(urlApi);
-                // Vérifie que le serveur a bien répondu avec un code succès (HTTP 200 OK)
-                if (!reponse.ok) throw new Error("Erreur réseau API");
-                // Convertit la réponse texte au format objet JavaScript (JSON = JavaScript Object Notation)
+                // Si le serveur renvoie 404 (Not Found = compteur pas encore créé), on affiche 0 proprement
+                if (reponse.status === 404) {
+                    elCompteur.textContent = "0";
+                    return;
+                }
+                // Si c'est une autre erreur serveur (ex. 500), on bascule dans le bloc catch
+                if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+                // Convertit la réponse brute en objet JavaScript (JSON = JavaScript Object Notation)
                 const donnees = await reponse.json();
 
-                // Si on vient d'incrémenter (+1), on mémorise dans la session pour éviter le spam F5
-                if (action === "up") {
+                // Si on vient d'incrémenter (+1), on bloque les futurs F5 dans cet onglet
+                if (doitIncrementer) {
                     sessionStorage.setItem("visite_deja_comptee", "oui");
                 }
 
-                // Affiche le nombre de visites de façon sécurisée (textContent bloque toute injection XSS)
-                // L'opérateur ?? (nullish coalescing) affiche 0 si donnees.count est absent
+                // Affiche le compteur via textContent (bloque toute injection HTML/XSS)
                 elCompteur.textContent = String(donnees.count ?? 0);
             } catch (erreur) {
-                // En cas de coupure internet ou de bloqueur de pub, affiche un tiret proprement
+                // Affiche un tiret uniquement en cas de vraie panne réseau ou de bloqueur strict
                 elCompteur.textContent = "—";
             }
         }
