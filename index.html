@@ -1677,64 +1677,57 @@
         mettreAJourHud();
         boucleJeu();
 
-        // --- Compteur de visites fiable avec affichage immédiat à 0 minimum ---
-        // Fonction asynchrone (async = attend la réponse réseau sans bloquer le jeu)
+        /// --- Compteur de visites actif (CountAPI + exclusion créateur) ---
+        // Déclare une fonction asynchrone (async = n'interrompt pas le jeu pendant l'appel réseau)
         async function gererCompteurVisites() {
-            // Récupère la balise <span> où s'affiche le compteur
+            // Récupère la balise <span> où s'affiche le nombre de visites dans le pied de page
             const elCompteur = document.getElementById("compteur-visites");
-            // Garde-fou (guard clause) : quitte si l'élément n'existe pas dans le DOM
+            // Garde-fou (guard clause) : arrête la fonction si la balise n'existe pas dans le DOM (Document Object Model)
             if (!elCompteur) return;
 
-            // Affiche 0 immédiatement pour garantir un minimum de 0 dès l'ouverture de la page
-            elCompteur.textContent = "0";
-
-            // Lit les paramètres d'URL (ex. ?moi=1)
+            // Extrait les paramètres de l'adresse actuelle (ex. ?moi=1) via URLSearchParams
             const params = new URLSearchParams(window.location.search);
-            // Marque ce navigateur comme étant le tien si ?moi=1 est présent
+            // Si ?moi=1 est présent dans l'URL, enregistre ce navigateur comme étant le tien
             if (params.get("moi") === "1") {
-                // Sauvegarde persistante dans le stockage local du navigateur (localStorage)
+                // Sauvegarde persistante dans le navigateur (localStorage = stockage local conservé après fermeture)
                 localStorage.setItem("jlb_ignorer_visite", "oui");
             }
 
-            // Détecte un test en local sur le PC (localhost ou 127.0.0.1)
+            // Détecte un test en local sur le PC (localhost, 127.0.0.1 ou ouverture directe sans hôte)
             const estEnLocal = ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
-            // Vérifie si ce navigateur est exclu du comptage
+            // Vérifie si ce navigateur est exclu du comptage en tant que créateur
             const estCreateur = localStorage.getItem("jlb_ignorer_visite") === "oui";
-            // Vérifie si l'onglet courant a déjà été compté (sessionStorage = durée de l'onglet)
+            // Vérifie si l'onglet actuel a déjà déclenché un comptage (sessionStorage = mémoire de l'onglet)
             const dejaCompte = sessionStorage.getItem("visite_deja_comptee") === "oui";
 
-            // Incrémente (+1) uniquement pour un vrai visiteur externe sur un nouvel onglet
+            // N'incrémente (+1) que pour un vrai visiteur externe sur un nouvel onglet
             const doitIncrementer = !(estEnLocal || estCreateur || dejaCompte);
-            // URL de l'API CounterAPI : "/up" pour ajouter 1, sans suffixe pour lire uniquement
-            const urlApi = doitIncrementer
-                ? "https://api.counterapi.dev/v1/jlb30350/bousculade-aux-urnes/up"
-                : "https://api.counterapi.dev/v1/jlb30350/bousculade-aux-urnes/";
+            // Choisit "hit" pour ajouter 1 visite, ou "get" pour lire le total sans ajouter 1
+            const action = doitIncrementer ? "hit" : "get";
+            // Construit l'URL de l'API CountAPI active pour ce jeu
+            const urlApi = `https://countapi.mileshilliard.com/api/v1/${action}/jlb30350-bousculade-aux-urnes`;
 
-            // Bloc try/catch (essayer/attraper) pour éviter tout plantage en cas d'erreur réseau
+            // Bloc try/catch (essayer/attraper) pour isoler l'appel réseau et éviter toute erreur non gérée
             try {
-                // Lance la requête avec un coupe-circuit (timeout) de 4 secondes pour éviter l'attente infinie
-                const reponse = await fetch(urlApi, { signal: AbortSignal.timeout(4000) });
-                // Si le compteur n'existe pas encore (404), on garde "0"
-                if (reponse.status === 404) {
-                    elCompteur.textContent = "0";
-                    return;
-                }
-                // Déclenche une erreur si le statut HTTP n'est pas valide (ex. 500)
+                // Lance la requête HTTP (fetch = récupérer) avec un délai limite (timeout) de 5 secondes
+                const reponse = await fetch(urlApi, { signal: AbortSignal.timeout(5000) });
+                // Lève une erreur explicite si le statut HTTP n'est pas valide (ex. 404 ou 500)
                 if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
-                // Convertit la réponse JSON (JavaScript Object Notation) en objet JS
+                // Convertit la réponse JSON (JavaScript Object Notation) en objet JavaScript
                 const donnees = await reponse.json();
 
-                // Mémorise dans la session que cette visite a déjà été comptée (anti-spam F5)
+                // Mémorise dans l'onglet que la visite a déjà été comptée pour éviter les doublons au rechargement
                 if (doitIncrementer) {
                     sessionStorage.setItem("visite_deja_comptee", "oui");
                 }
 
-                // Affiche la valeur reçue (ou 0 si absente), jamais inférieure à 0
-                const total = Number(donnees.count);
+                // Lit le champ "value" renvoyé par CountAPI et le convertit en nombre
+                const total = Number(donnees.value ?? 0);
+                // Affiche la valeur via textContent (bloque toute injection HTML/XSS) et garantit un minimum de 0
                 elCompteur.textContent = String(Number.isFinite(total) && total >= 0 ? total : 0);
             } catch (erreur) {
-                // En cas d'échec ou de délai dépassé, conserve "0" au lieu d'un tiret ou de "..."
-                elCompteur.textContent = "0";
+                // Affiche un tiret en cas d'échec réseau ou de bloqueur afin de ne pas masquer la panne
+                elCompteur.textContent = "—";
             }
         }
         // Lance la gestion du compteur au chargement de la page
