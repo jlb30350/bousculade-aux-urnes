@@ -54,6 +54,17 @@
             z-index: 9999;
         }
 
+        /* En mode plein écran (notamment sur mobile), agrandit la zone de jeu et le canvas */
+        body.fullscreen-jeu .zone-jeu {
+            max-width: 100%;
+            flex: 1 1 auto;
+        }
+
+        body.fullscreen-jeu canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
         /* Barre supérieure (HUD = Heads-Up Display / affichage tête haute) */
         .barre-hud {
             display: flex;
@@ -1011,11 +1022,25 @@
             btnFullscreen.textContent = estEnPleinEcran() ? "Quitter" : "Plein écran";
         }
 
+        // Bascule entre le mode plein écran (API native sur PC + mode CSS sur mobile) et l'affichage normal
         async function basculerPleinEcran() {
+            // Détecte si l'appareil est un smartphone ou une tablette tactile
+            const estMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            // Cible l'élément racine de la page pour la requête plein écran native
             const cible = document.documentElement;
+            // Récupère la méthode native selon le navigateur (standard ou préfixée WebKit)
             const requestFn = cible.requestFullscreen || cible.webkitRequestFullscreen;
             const exitFn = document.exitFullscreen || document.webkitExitFullscreen;
             const natifActif = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+
+            // Sur mobile, bascule directement la classe CSS ".fullscreen-jeu" pour occuper l'écran sans erreur
+            if (estMobile) {
+                document.body.classList.toggle("fullscreen-jeu");
+                mettreAJourLibelleFullscreen();
+                return;
+            }
+
+            // Sur ordinateur, utilise l'API plein écran native du navigateur
             try {
                 if (!natifActif && requestFn) {
                     await requestFn.call(cible);
@@ -1030,7 +1055,7 @@
                     return;
                 }
             } catch (err) {
-                // Repli silencieux vers la classe CSS plein écran si bloqué sur iOS
+                // Repli silencieux vers la classe CSS si l'API native est refusée
             }
             document.body.classList.toggle("fullscreen-jeu");
             mettreAJourLibelleFullscreen();
