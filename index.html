@@ -336,45 +336,60 @@
             }
         }
 
-        /* En mode horizontal (paysage) sur smartphone : maximise la place du jeu */
-        @media (orientation: landscape) and (max-width: 900px) {
-            body {
-                padding: 2px 6px;
-            }
+        /* Mode paysage sur mobile (ex. 844x390) : libère tout l'espace central pour le jeu */
+@media (orientation: landscape) and (max-height: 500px) {
+    body {
+        padding: 2px 6px;
+        gap: 2px;
+    }
 
-            .barre-hud {
-                font-size: 10.5px;
-                gap: 3px;
-            }
+    .barre-hud {
+        flex-wrap: nowrap;
+        font-size: 10px;
+        gap: 3px;
+    }
 
-            .btn-hud {
-                padding: 2px 5px;
-                font-size: 10px;
-            }
+    .btn-hud {
+        padding: 2px 5px;
+        font-size: 9.5px;
+    }
 
-            .controles-mobiles button {
-                padding: 6px 10px;
-                font-size: 13px;
-            }
+    .zone-jeu {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+        height: calc(100vh - 38px);
+        min-height: 0;
+        padding: 0;
+    }
 
-            .pied-de-page {
-                font-size: 10px;
-                padding: 1px 0;
-            }
+    canvas {
+        height: 100%;
+        width: auto;
+        max-width: 100%;
+        max-height: 100%;
+    }
 
-            .zone-jeu {
-                max-width: 100%;
-                padding: 0;
-            }
+    /* Place les contrôles tactiles en bas sans réduire la hauteur du canvas */
+    .controles-mobiles {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 4px;
+        z-index: 20;
+        pointer-events: none;
+    }
 
-            canvas {
-                height: 100%;
-                width: auto;
-                max-width: calc(100vw - 20px);
-                max-height: 100%;
-                aspect-ratio: 4 / 3;
-            }
-        }
+    .controles-mobiles button {
+        pointer-events: auto;
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    .pied-de-page {
+        display: none;
+    }
+}
     </style>
 </head>
 
