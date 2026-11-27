@@ -113,7 +113,9 @@
             /* Couleur de fond sombre du terrain */
             background: #101522;
             /* Laisse la largeur et la hauteur s'adapter automatiquement au ratio 800x600 */
-            width: auto;
+            /* Calcule la largeur optimale : prend le minimum entre 100% de la largeur disponible et la hauteur utile (100dvh - 90px) convertie en ratio 4/3 */
+            width: min(100%, calc((100dvh - 90px) * 4 / 3));
+            /* Laisse le navigateur déduire automatiquement la hauteur (height: auto) à partir du ratio 4/3 pour garantir zéro déformation */
             height: auto;
             /* Empêche le canvas de déborder en largeur ou en hauteur sur les petits écrans */
             max-width: 100%;
