@@ -363,22 +363,60 @@
             }
         }
 
-        /* En paysage sur smartphone (écran peu haut), cache l'interface pendant la partie et place les contrôles sur le côté */
+        /* Mode portrait sur mobile : tout le canvas visible + boutons compacts en bas */
+        @media (orientation: portrait) and (max-width: 900px) {
+            /* Cache uniquement la barre du haut pendant la partie pour garder l'écran épuré */
+            body.partie-en-cours .barre-hud {
+                display: none;
+            }
+
+            /* Donne toute la largeur au jeu en réservant la place des boutons en bas */
+            body.partie-en-cours .zone-jeu {
+                width: 100%;
+                max-width: 100vw;
+                height: calc(100dvh - 82px);
+                padding: 0 2px;
+            }
+
+            /* Garde les proportions exactes du jeu sans rogner les bords */
+            body.partie-en-cours canvas {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+            /* Boutons tactiles épurés et compacts en bas de l'écran en portrait */
+            .controles-mobiles {
+                padding: 2px 6px env(safe-area-inset-bottom, 4px);
+            }
+
+            .controles-mobiles button {
+                background: rgba(40, 48, 68, 0.85);
+                border-width: 1.5px;
+                padding: 8px 14px;
+                font-size: 14px;
+            }
+
+            body.partie-en-cours .pied-de-page {
+                font-size: 9.5px;
+                padding: 1px 0;
+            }
+        }
+
+        /* Mode paysage sur mobile : jeu pur au centre + contrôles flottants dans les espaces vides gauche/droite */
         @media (orientation: landscape) and (max-height: 500px) {
-            /* Cache la barre du haut, les boutons mobiles et le pied de page quand la partie est lancée */
+            /* Cache la barre du haut et le pied de page pendant la partie */
             body.partie-en-cours .barre-hud,
-            body.partie-en-cours .controles-mobiles,
             body.partie-en-cours .pied-de-page {
                 display: none;
             }
 
-            /* Enlève les marges pendant la partie pour gagner de la place */
             body.partie-en-cours {
                 padding: 0;
                 gap: 0;
             }
 
-            /* Donne toute la hauteur et la largeur de l'écran à la zone de jeu */
             body.partie-en-cours .zone-jeu {
                 height: 100dvh;
                 width: 100vw;
@@ -389,7 +427,6 @@
                 justify-content: center;
             }
 
-            /* Agrandit le jeu à la hauteur maximale disponible */
             body.partie-en-cours canvas {
                 height: 100dvh;
                 width: auto;
@@ -397,15 +434,35 @@
                 max-height: 100dvh;
             }
 
-            /* Avant de démarrer en paysage, met les boutons mobiles sur le côté droit */
-            body:not(.partie-en-cours) .controles-mobiles {
+            /* Répartit les contrôles mobiles à gauche (flèches) et à droite (sifflet) dans les bandes latérales */
+            .controles-mobiles {
                 position: fixed;
-                right: 8px;
-                top: 50%;
-                transform: translateY(-50%);
-                flex-direction: column;
-                gap: 6px;
-                z-index: 20;
+                left: 10px;
+                right: 10px;
+                bottom: 14px;
+                width: auto;
+                max-width: none;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                z-index: 30;
+                pointer-events: none;
+            }
+
+            /* Rend les boutons cliquables avec un style translucide épuré */
+            .controles-mobiles button {
+                pointer-events: auto;
+                background: rgba(40, 48, 68, 0.72);
+                border: 1.5px solid rgba(255, 255, 255, 0.75);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+
+            .controles-mobiles #btn-sifflet {
+                background: rgba(42, 157, 143, 0.82);
+                padding: 10px 15px;
             }
         }
     </style>
