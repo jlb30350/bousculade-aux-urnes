@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<!-- Déclare un document HTML5 standard -->
+<!-- Déclare un document HTML5 standard pour le navigateur et le validateur W3C -->
 <html lang="fr">
 
 <head>
-    <!-- Encodage UTF-8 pour afficher correctement les accents français -->
+    <!-- Encodage UTF-8 pour afficher correctement tous les caractères accentués -->
     <meta charset="UTF-8">
-    <!-- Viewport (fenêtre d'affichage) : adapte la largeur au mobile et bloque le zoom involontaire -->
+    <!-- Viewport (fenêtre d'affichage) : adapte la largeur au mobile et empêche le zoom accidentel -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- Titre affiché dans l'onglet du navigateur -->
-    <title>L'Urne Pleine — Défi Tactique</title>
+    <title>Bousculade aux Urnes — Défi Tactique</title>
     <style>
-        /* Applique border-box (boîte incluant bordures et marges internes) à tous les éléments */
+        /* Applique border-box (largeur incluant bordures et marges internes) à tous les éléments */
         * {
             box-sizing: border-box;
         }
 
-        /* Réinitialise la page, fixe le fond sombre et empêche le défilement (overflow: hidden) */
+        /* Réinitialise les marges, fixe le fond sombre et bloque le défilement (overflow: hidden) */
         html,
         body {
             margin: 0;
@@ -27,7 +27,7 @@
             font-family: sans-serif;
             /* Désactive les gestes tactiles natifs (scroll/zoom) pour réserver l'écran au jeu */
             touch-action: none;
-            /* Empêche la sélection de texte lors des clics rapides */
+            /* Empêche la sélection involontaire de texte lors des clics rapides */
             user-select: none;
             -webkit-user-select: none;
             overflow: hidden;
@@ -43,7 +43,7 @@
             padding: 6px 10px;
         }
 
-        /* Classe de repli (fallback) pour simuler le plein écran sur les mobiles bloquant l'API native */
+        /* Classe de repli (fallback) simulant le plein écran si l'API native est bloquée sur mobile */
         body.fullscreen-jeu {
             position: fixed;
             inset: 0;
@@ -92,7 +92,7 @@
             gap: 4px;
         }
 
-        /* Conteneur central flexible qui accueille la toile de dessin (canvas) */
+        /* Conteneur central flexible accueillant la toile de dessin (canvas) */
         .zone-jeu {
             position: relative;
             flex: 1;
@@ -270,6 +270,27 @@
             border-color: #93c5fd;
         }
 
+        /* Pied de page discret (footer) contenant le lien vers TokenVault.fr */
+        .pied-de-page {
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+            padding: 4px 0;
+            flex-shrink: 0;
+        }
+
+        /* Lien mis en valeur en doré sans soulignement par défaut */
+        .pied-de-page a {
+            color: #ffd166;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        /* Souligne le lien au survol de la souris (hover) */
+        .pied-de-page a:hover {
+            text-decoration: underline;
+        }
+
         /* Cache les contrôles tactiles sur PC (grand écran + souris précise) */
         @media (min-width: 901px) and (hover: hover) and (pointer: fine) {
             .controles-mobiles {
@@ -376,6 +397,15 @@
             <button type="button" id="btn-sifflet">SIFFLET</button>
         </div>
     </div>
+
+    <!-- Pied de page discret (footer) utilisant des classes CSS dédiées (zéro style en ligne) -->
+    <footer class="pied-de-page">
+        Jeu créé par JLB • Découvre aussi
+        <!-- Lien externe sécurisé contre le Reverse Tabnabbing grâce à rel="noopener noreferrer" -->
+        <a href="https://tokenvault.fr" target="_blank" rel="noopener noreferrer">
+            TokenVault.fr (plusieurs IA sans abonnement)
+        </a>
+    </footer>
 
     <script>
         // Récupération de la toile (canvas) et de son contexte graphique 2D
