@@ -336,32 +336,32 @@
             }
         }
 
-        /* Mode portrait sur mobile : tout le canvas visible sans coupure en bas */
-        @media (orientation: portrait) and (max-width: 900px) {
-            body.partie-en-cours .barre-hud,
-            body.partie-en-cours .controles-mobiles {
-                display: none;
-            }
+        /* Cible uniquement les boutons secondaires de la barre supérieure pendant une partie sur mobile */
+body.partie-en-cours #btn-volet,
+body.partie-en-cours #btn-vitesse,
+body.partie-en-cours #btn-demarrer,
+body.partie-en-cours #btn-fullscreen {
+    /* Cache ces boutons non indispensables pendant l'action pour garder l'écran épuré */
+    display: none;
+}
 
-            body.partie-en-cours .zone-jeu {
-                width: 100%;
-                max-width: 100vw;
-                height: calc(100dvh - 34px);
-                padding: 0 2px;
-            }
+/* Maintient la barre supérieure visible et compacte en cours de partie sur mobile */
+body.partie-en-cours .barre-hud {
+    /* Force l'affichage en ligne souple (flex) même sur petit écran */
+    display: flex;
+    /* Réduit la taille du texte pour ne pas encombrer le haut de l'écran */
+    font-size: 10px;
+    /* Resserre l'espacement entre les éléments */
+    gap: 3px;
+}
 
-            body.partie-en-cours canvas {
-                width: 100%;
-                height: auto;
-                max-width: 100%;
-                max-height: 100%;
-            }
-
-            body.partie-en-cours .pied-de-page {
-                font-size: 9.5px;
-                padding: 2px 0;
-            }
-        }
+/* Réduit la taille des boutons restants (STOP, Reset, Son) pendant une partie sur mobile */
+body.partie-en-cours .barre-hud .btn-hud {
+    /* Réduit les marges intérieures du bouton */
+    padding: 2px 5px;
+    /* Réduit la police du bouton pour un rendu discret */
+    font-size: 9.5px;
+}
 /* Masqué par défaut sur PC et en paysage */
     .bandeau-rotation {
         display: none;
