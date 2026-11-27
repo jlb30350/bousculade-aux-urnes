@@ -92,39 +92,30 @@
             gap: 4px;
         }
 
-        /* Conteneur central flexible accueillant la toile de dessin (canvas) */
+        /* Conteneur central : occupe tout l'espace libre entre la barre du haut et les contrôles */
         .zone-jeu {
             position: relative;
-            flex: 1;
+            flex: 1 1 auto;
             width: 100%;
             max-width: 920px;
             min-height: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 4px 0;
+            padding: 2px 0;
         }
 
-        /* Toile graphique (canvas) : conserve strictement le ratio 4/3 sans jamais étirer l'image */
+        /* Toile graphique : s'agrandit au maximum dans la zone disponible sans déformer le ratio 4/3 */
         canvas {
-            /* Bordure blanche et coins arrondis autour de la zone de jeu */
-            border: 3px solid #fff;
+            border: 2px solid #fff;
             border-radius: 8px;
-            /* Couleur de fond sombre du terrain */
             background: #101522;
-            /* Laisse la largeur et la hauteur s'adapter automatiquement au ratio 800x600 */
-            /* Calcule la largeur optimale : prend le minimum entre 100% de la largeur disponible et la hauteur utile (100dvh - 90px) convertie en ratio 4/3 */
-            width: min(100%, calc((100dvh - 90px) * 4 / 3));
-            /* Laisse le navigateur déduire automatiquement la hauteur (height: auto) à partir du ratio 4/3 pour garantir zéro déformation */
+            width: auto;
             height: auto;
-            /* Empêche le canvas de déborder en largeur ou en hauteur sur les petits écrans */
             max-width: 100%;
             max-height: 100%;
-            /* Verrouille le ratio d'aspect (aspect-ratio) sur 4/3 */
             aspect-ratio: 4 / 3;
-            /* Supprime l'espace blanc résiduel sous la balise canvas */
             display: block;
-            /* Affiche une main (pointer) au survol pour indiquer que c'est cliquable */
             cursor: pointer;
         }
 
@@ -307,17 +298,30 @@
             }
         }
 
-        /* Adapte la taille du canvas sur smartphone tenu verticalement (portrait) */
-        @media (orientation: portrait) {
-            .zone-jeu {
-                flex: 0 1 auto;
-                width: 100%;
+        /* Sur écrans tactiles (iPhone / mobile) : compacte les barres pour agrandir le jeu */
+        @media (max-width: 900px) {
+            body {
+                padding: 4px 6px;
             }
 
-            canvas {
-                width: 100%;
-                height: auto;
-                max-height: 48dvh;
+            .barre-hud {
+                font-size: 11px;
+                gap: 4px;
+            }
+
+            .btn-hud {
+                padding: 4px 6px;
+                font-size: 10.5px;
+            }
+
+            button {
+                padding: 8px 11px;
+                font-size: 14px;
+            }
+
+            .pied-de-page {
+                font-size: 10.5px;
+                padding: 2px 0;
             }
         }
     </style>
