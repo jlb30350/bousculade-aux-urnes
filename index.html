@@ -1471,6 +1471,31 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
+            // Dessine visuellement l'aire de jeu des votants uniquement lorsque la partie est active ("en_cours")
+            if (etatJeu === "en_cours") {
+                // Définit la marge gauche/droite (X) : plus étroite (18 px) si l'aire est agrandie, sinon 42 px
+                const cadreX = aireVotantsElargie ? 18 : 42;
+                // Définit la limite haute (Y) : monte à 332 px si l'aire est agrandie, sinon 362 px
+                const cadreY = aireVotantsElargie ? 332 : 362;
+                // Calcule la largeur totale du rectangle en retirant les deux marges latérales (gauche et droite)
+                const cadreW = canvas.width - cadreX * 2;
+                // Calcule la hauteur du rectangle jusqu'au bas de la zone de jeu (588 px)
+                const cadreH = 588 - cadreY;
+
+                // Sauvegarde l'état graphique courant (couleurs, épaisseur de trait) avant de tracer le cadre
+                ctx.save();
+                // Choisit une bordure bleu clair visible si l'aire est élargie, ou discrète sinon
+                ctx.strokeStyle = aireVotantsElargie
+                    ? "rgba(76, 201, 240, 0.75)"
+                    : "rgba(255, 255, 255, 0.14)";
+                // Épaissit légèrement le trait quand l'aire élargie est active
+                ctx.lineWidth = aireVotantsElargie ? 2.5 : 1.5;
+                // Trace le rectangle délimitant l'aire des votants sur le canvas (toile 2D)
+                ctx.strokeRect(cadreX, cadreY, cadreW, cadreH);
+                // Restaure l'état graphique précédent pour ne pas impacter les dessins suivants
+                ctx.restore();
+            }
+
             // Bouton central pulsant pendant la phase de choix pour lancer la partie
             if (etatJeu === "choix") {
                 const pulsation = 1 + Math.sin(maintenant * 0.006) * 0.03;
