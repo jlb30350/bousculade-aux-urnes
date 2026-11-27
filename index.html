@@ -336,15 +336,41 @@
             }
         }
 
+        /* Mode portrait sur mobile : tout le canvas visible sans coupure en bas */
+        @media (orientation: portrait) and (max-width: 900px) {
+            body.partie-en-cours .barre-hud,
+            body.partie-en-cours .controles-mobiles {
+                display: none;
+            }
+
+            body.partie-en-cours .zone-jeu {
+                width: 100%;
+                max-width: 100vw;
+                height: calc(100dvh - 34px);
+                padding: 0 2px;
+            }
+
+            body.partie-en-cours canvas {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+            body.partie-en-cours .pied-de-page {
+                font-size: 9.5px;
+                padding: 2px 0;
+            }
+        }
+
         /* En paysage sur smartphone (écran peu haut), cache l'interface pendant la partie et place les contrôles sur le côté */
-        /* Remplace le bloc canvas dans @media (orientation: landscape) and (max-height: 500px) */
-body.partie-en-cours canvas {
-    width: 100%;
-    height: 100%;
-    max-width: 100vw;
-    max-height: 100dvh;
-    aspect-ratio: auto;
-}
+        @media (orientation: landscape) and (max-height: 500px) {
+            /* Cache la barre du haut, les boutons mobiles et le pied de page quand la partie est lancée */
+            body.partie-en-cours .barre-hud,
+            body.partie-en-cours .controles-mobiles,
+            body.partie-en-cours .pied-de-page {
+                display: none;
+            }
 
             /* Enlève les marges pendant la partie pour gagner de la place */
             body.partie-en-cours {
