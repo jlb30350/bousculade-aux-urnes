@@ -710,6 +710,8 @@
         let monCampId = 0;
         let indexBouclier = 0;
         let modeRalenti = false;
+        // Indique si l'aire de circulation des votants est agrandie par un appui au centre
+        let aireVotantsElargie = false;
         let bulletinsBloques = 0;
         let resultatPartie = null;
         let gagnantUrne = null;
@@ -965,6 +967,19 @@
                     mettreAJourHud();
                 } else {
                     indexBouclier = cliquee;
+                }
+                // Vérifie que la partie est active ("en_cours") et que le clic/toucher tombe dans la zone centrale des votants (X de 140 à 660, Y de 355 à 545)
+                if (etatJeu === "en_cours" && x >= 140 && x <= 660 && y >= 355 && y <= 545) {
+                    // Inverse l'état booléen (true devient false, false devient true) pour agrandir ou réduire l'aire
+                    aireVotantsElargie = !aireVotantsElargie;
+                    // Choisit le message d'information selon le nouvel état de l'aire des votants
+                    messageEvenement = aireVotantsElargie
+                        // Texte affiché si l'aire est passée en mode élargi
+                        ? "Aire des votants agrandie !"
+                        // Texte affiché si l'aire revient à sa taille normale
+                        : "Aire des votants normale.";
+                    // Fixe la durée d'affichage du message en nombre d'images d'animation (~1 seconde à 60 fps)
+                    timerEvenement = 65;
                 }
             }
         });
