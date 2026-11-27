@@ -407,13 +407,15 @@
         </div>
     </div>
 
-    <!-- Pied de page discret (footer) utilisant des classes CSS dédiées (zéro style en ligne) -->
+    <!-- Pied de page discret contenant le lien vers TokenVault.fr et le compteur de visites -->
     <footer class="pied-de-page">
         Jeu créé par JLB • Découvre aussi
-        <!-- Lien externe sécurisé contre le Reverse Tabnabbing grâce à rel="noopener noreferrer" -->
+        <!-- Lien externe sécurisé contre le Reverse Tabnabbing -->
         <a href="https://tokenvault.fr" target="_blank" rel="noopener noreferrer">
             TokenVault.fr (plusieurs IA sans abonnement)
         </a>
+        <!-- Séparateur visuel suivi du compteur dynamique -->
+        • Visites : <span id="compteur-visites">...</span>
     </footer>
 
     <script>
@@ -1565,6 +1567,61 @@
         // Initialisation de l'interface et démarrage de la boucle de rendu (en état "choix")
         mettreAJourHud();
         boucleJeu();
+
+        // --- Compteur de visites sans te compter (API CounterAPI + localStorage) ---
+        // Fonction asynchrone (async = qui attend une réponse réseau sans bloquer le jeu)
+        async function gererCompteurVisites() {
+            // Récupère l'élément HTML qui affichera le nombre de visites
+            const elCompteur = document.getElementById("compteur-visites");
+            // Garde-fou (guard clause) : quitte la fonction si l'élément n'existe pas dans le DOM
+            if (!elCompteur) return;
+
+            // Lit les paramètres de l'URL actuelle (ex. ?moi=1) via URLSearchParams
+            const params = new URLSearchParams(window.location.search);
+            // Vérifie si tu as passé ?moi=1 dans l'adresse pour marquer ton propre navigateur
+            if (params.get("moi") === "1") {
+                // Enregistre durablement un témoin (flag) dans le stockage local du navigateur (localStorage)
+                localStorage.setItem("jlb_ignorer_visite", "oui");
+            }
+
+            // Détecte si tu es en train de tester en local sur ton PC (localhost ou 127.0.0.1)
+            const estEnLocal = ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
+            // Vérifie si ce navigateur a été marqué comme étant le tien
+            const estCreateur = localStorage.getItem("jlb_ignorer_visite") === "oui";
+            // Vérifie si le visiteur a déjà été compté dans cet onglet (sessionStorage = durée de l'onglet)
+            const dejaCompte = sessionStorage.getItem("visite_deja_comptee") === "oui";
+
+            // Choisit l'action de l'API : "get" (lecture seule) si c'est toi ou un rafraîchissement, sinon "up" (+1)
+            const action = (estEnLocal || estCreateur || dejaCompte) ? "get" : "up";
+            // Construit l'URL de l'API CounterAPI (namespace = ton pseudo, key = nom du jeu)
+            const urlApi = `https://api.counterapi.dev/v1/jlb30350/bousculade-aux-urnes/${action}`;
+
+            // Bloc try/catch (essayer/attraper) pour éviter que le jeu ne plante si l'API est hors ligne
+            try {
+                // Envoie une requête réseau HTTP GET (fetch = récupérer) et attend la réponse (await)
+                const reponse = await fetch(urlApi);
+                // Vérifie que le serveur a bien répondu avec un code succès (HTTP 200 OK)
+                if (!reponse.ok) throw new Error("Erreur réseau API");
+                // Convertit la réponse texte au format objet JavaScript (JSON = JavaScript Object Notation)
+                const donnees = await reponse.json();
+
+                // Si on vient d'incrémenter (+1), on mémorise dans la session pour éviter le spam F5
+                if (action === "up") {
+                    sessionStorage.setItem("visite_deja_comptee", "oui");
+                }
+
+                // Affiche le nombre de visites de façon sécurisée (textContent bloque toute injection XSS)
+                // L'opérateur ?? (nullish coalescing) affiche 0 si donnees.count est absent
+                elCompteur.textContent = String(donnees.count ?? 0);
+            } catch (erreur) {
+                // En cas de coupure internet ou de bloqueur de pub, affiche un tiret proprement
+                elCompteur.textContent = "—";
+            }
+        }
+
+        // Lance la gestion du compteur au chargement de la page
+        gererCompteurVisites();
+
     </script>
 </body>
 
